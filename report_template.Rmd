@@ -1,0 +1,62 @@
+---
+title: "Proyección de tuberculosis en **`r params$lugar`**"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    keep_tex: true
+params:
+  plot_file1: ""
+  plot_file2: ""
+  summary_text: ""
+  lugar: ""
+  tabla2_reporte: NULL
+  tabla1_reporte: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+# Resumen general
+
+`r params$summary_text`
+
+---
+
+# Gráfico 1: Evolución histórica
+
+A continuación se muestra el primer gráfico, que representa la evolución histórica de los casos de tuberculosis proyectados según los datos ingresados.
+
+```{r grafico1, fig.cap="Evolución histórica de los casos", out.width='90%'}
+knitr::include_graphics(params$plot_file1)
+```
+
+---
+
+# Tabla 1: Tasa histórica
+
+Evolución histórica de la tasa de tuberculosis.
+
+```{r tabla1, echo=FALSE}
+knitr::kable(params$tabla1_reporte, caption = "Evolución histórica de la tasa de tuberculosis", digits = 2)
+```
+
+---
+
+# Gráfico 2: Proyección por categoría
+
+Este segundo gráfico muestra la proyección futura de la tasa de notificación, junto con su intervalo de confianza.
+
+```{r grafico2, fig.cap="Proyección de la tasa con intervalo de confianza", out.width='90%'}
+knitr::include_graphics(params$plot_file2)
+```
+
+---
+
+# Tabla 2: Proyección
+
+Valores proyectados y sus intervalos de confianza.
+
+```{r tabla2, echo=FALSE}
+knitr::kable(params$tabla2_reporte, caption = "Valores proyectados", digits = 2)
+```
