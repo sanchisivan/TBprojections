@@ -346,7 +346,7 @@ shinyServer(function(input, output) {
         
         # Cargar y aplicar suavizado con Kernel gaussiano
         
-        h_optimo <- dpill(df$TASA,df$AÑO)
+        h_optimo <- bw.nrd0(df$TASA)
         
         
         # Suavizado con kernel gaussiano
@@ -368,7 +368,21 @@ shinyServer(function(input, output) {
         
         BB <- optimize_MASE(suavizado$y)
         
-        Período2 <- holt_smooth(datos_suavizados, BB$best_alpha, BB$best_beta, 1)
+        ## VERIFICAR SI HAY TENDENCIA O NO PARA DEFINIR EL ALFA Y EL BETA
+        
+        ajuste <- lm(df$TASA ~ df$`AÑO`)
+        
+        resultado_ajuste <- summary(ajuste)
+        
+        if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+          
+          Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+          
+        } else {
+          
+          Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+          
+        }
         
         
         ## CALCULO DE LOS RESIDUOS ENTRE LOS DATOS SUAVIZADOS Y EL SUAVIZADO EXPONENCIAL
@@ -383,18 +397,21 @@ shinyServer(function(input, output) {
         
         anio_pred_orig <- anio_pred_inicio_orig:anio_pred_final_orig
         
+        if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+          
+          Período2_2 <- holt(df$TASA,h = length(anio_pred_orig),
+                             alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+          
+        } else {
+          
+          Período2_2 <- holt(df$TASA,h = length(anio_pred_orig),
+                             alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+          
+        }
         
-        ### PROYECCION DE LOS DATOS ORIGINALES SIN KERNEL GAUSSIANO
+        ## HACER LA PROYECCION USANDO LA FUNCION DE CONFIANZA HOLT
         
-        BB1 <- optimize_MASE(df$TASA)
-        
-        Período2_2 <- holt_smooth(df$TASA, BB1$best_alpha, BB1$best_beta, length(anio_pred_orig))
-        
-        
-        ## INTERVALO DE CONFIANZA DE LA PROYECCIÓN DE LA NO SUAVIZADA
-        
-        ci2_2_pred <- calculo_confianza_holt(Período2_2$forecasted,
-                                             residuals2,0.95)
+        ci2_2_pred<- calculo_confianza_holt(Período2_2$mean, Período2$residuals, confidence_level = 0.95)
         
         
         ## CREACION DEL DATA FRAME
@@ -425,10 +442,17 @@ shinyServer(function(input, output) {
           
         }
         
+        
+        ci2_2_pred_2 <- calculate_prediction_intervals(Período2_2$mean,Período2$residuals,
+                                                       as.numeric(length(anio_pred_orig)),confidence_level = 0.95)
+        
+        
         confianza_futura_orig <- data.frame(AÑO = anio_pred_orig, 
                                             tasa_proyectada = Período2_2$forecasted*faqtor,
                                             LI_orig = ci2_2_pred$lower*faqtor,
-                                            LS_orig = ci2_2_pred$upper*faqtor)
+                                            LS_orig = ci2_2_pred$upper*faqtor,
+                                            LI_puntos = ci2_2_pred_2$lower*faqtor,
+                                            LS_puntos = ci2_2_pred_2$upper*faqtor)
         
         
         ### GRAFICO PROYECCION SIN CAMBIOS
@@ -446,6 +470,8 @@ shinyServer(function(input, output) {
                     color = "darkblue", size = 1, linetype = "dashed") +
           geom_ribbon(data = subset(confianza_futura_orig, AÑO <= 2029), 
                       aes(ymin = LI_orig, ymax = LS_orig), fill = "lightblue", alpha = 0.3) +
+          geom_ribbon(data = subset(confianza_futura_orig, AÑO <= 2029), 
+                      aes(ymin = LI_puntos, ymax = LS_puntos), fill = "gold", alpha = 0.3) +
           labs(title = paste0("Tendencia de la tasa de notificación de tuberculosis en ", input$lugar,", ",min(df$AÑO), "-", max(df$AÑO),",\n",
                               "proyección ",min(confianza_futura_orig$AÑO), "-", max(confianza_futura_orig$AÑO),", y región de confianza del 95% de la proyección"),
                x = "Año",
@@ -480,19 +506,31 @@ shinyServer(function(input, output) {
         
         # Valores suavizados
         
-        datos_suavizados <- suavizado$y
+        #datos_suavizados <- suavizado$y
         
         
         ## APLICACION DE SUAVIZADO EXPONENCIAL (SIMPLE O DOBLE -HOLT- SEGÚN SI TIENE O NO TENDENCIA)
         
-        BB <- optimize_MASE(datos_suavizados)
+        BB <- optimize_MASE(suavizado$y)
         
-        Período2 <- holt_smooth(datos_suavizados, BB$best_alpha, BB$best_beta, 1)
+        ajuste <- lm(data$TASA ~ data$`AÑO`)
+        
+        resultado_ajuste <- summary(ajuste)
+        
+        if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+          
+          Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+          
+        } else {
+          
+          Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+          
+        }
         
         
         ## CALCULO DE LOS RESIDUOS ENTRE LOS DATOS SUAVIZADOS Y EL SUAVIZADO EXPONENCIAL
         
-        residuals2 <- datos_suavizados- Período2$fitted
+        residuals2 <- suavizado$y - Período2$fitted
         
         
         
@@ -502,15 +540,20 @@ shinyServer(function(input, output) {
         
         anio_pred_orig <- anio_pred_inicio_orig:anio_pred_final_orig
         
+        if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+          
+          Período2_2 <- holt(df_2$TASA,h = length(anio_pred_orig),
+                             alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+          
+        } else {
+          
+          Período2_2 <- holt(df_2$TASA,h = length(anio_pred_orig),
+                             alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+          
+        }
         
-        ### PROYECCION DE LOS DATOS ORIGINALES SIN KERNEL GAUSSIANO
+        ci2_2_pred<- calculo_confianza_holt(Período2_2$mean, Período2$residuals, confidence_level = 0.95)
         
-        BB1 <- optimize_MASE(data$TASA)
-        
-        Período2_2 <- holt_smooth(data$TASA, BB1$best_alpha, BB1$best_beta, length(anio_pred_orig))
-        
-        ci2_2_pred <- calculo_confianza_holt(Período2_2$forecasted,
-                                             residuals2,0.95)
         
         ### AGREGADO BRECHA Y SUBREGISTRO
         
@@ -538,11 +581,16 @@ shinyServer(function(input, output) {
           
         }
         
+        ci2_2_pred_2 <- calculate_prediction_intervals(Período2_2$mean,Período2$residuals,
+                                                       as.numeric(length(anio_pred_orig)),confidence_level = 0.95)
+        
         
         confianza_futura_orig <- data.frame(AÑO = anio_pred_orig, 
                                             tasa_proyectada = Período2_2$forecasted*faqtor,
                                             LI_orig = ci2_2_pred$lower*faqtor,
-                                            LS_orig = ci2_2_pred$upper*faqtor)
+                                            LS_orig = ci2_2_pred$upper*faqtor,
+                                            LI_puntos = ci2_2_pred_2$lower*faqtor,
+                                            LS_puntos = ci2_2_pred_2$upper*faqtor)
         
         
         ### GRAFICO PROYECCION SIN CAMBIOS
@@ -560,6 +608,8 @@ shinyServer(function(input, output) {
                     color = "darkblue", size = 1, linetype = "dashed") +
           geom_ribbon(data = subset(confianza_futura_orig, AÑO <= 2029), 
                       aes(ymin = LI_orig, ymax = LS_orig), fill = "lightblue", alpha = 0.8) +
+          geom_ribbon(data = subset(confianza_futura_orig, AÑO <= 2029), 
+                      aes(ymin = LI_puntos, ymax = LS_puntos), fill = "gold", alpha = 0.3) +
           labs(title = paste0("Tendencia de la tasa de notificación de tuberculosis en ", input$lugar,", ",min(df$AÑO), "-", max(df$AÑO),",\n",
                               "proyección ",min(confianza_futura_orig$AÑO), "-", max(confianza_futura_orig$AÑO),", y región de confianza del 95% de la proyección"),
                x = "Año",
