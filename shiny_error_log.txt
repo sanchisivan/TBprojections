@@ -1,0 +1,3 @@
+[2025-08-01 09:56:01] objeto 'df_2' no encontrado
+[2025-08-04 17:27:30] arguments imply differing number of rows: 5, 0
+[2025-08-04 17:52:54] objeto 'BB1' no encontrado

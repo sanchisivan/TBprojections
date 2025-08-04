@@ -387,7 +387,7 @@ shinyServer(function(input, output) {
         
         ## CALCULO DE LOS RESIDUOS ENTRE LOS DATOS SUAVIZADOS Y EL SUAVIZADO EXPONENCIAL
         
-        residuals2 <- datos_suavizados- Período2$fitted
+        residuals2 <- suavizado$y- Período2$fitted
         
         
         
@@ -448,7 +448,7 @@ shinyServer(function(input, output) {
         
         
         confianza_futura_orig <- data.frame(AÑO = anio_pred_orig, 
-                                            tasa_proyectada = Período2_2$forecasted*faqtor,
+                                            tasa_proyectada = Período2_2$mean*faqtor,
                                             LI_orig = ci2_2_pred$lower*faqtor,
                                             LS_orig = ci2_2_pred$upper*faqtor,
                                             LI_puntos = ci2_2_pred_2$lower*faqtor,
@@ -488,19 +488,19 @@ shinyServer(function(input, output) {
         
         ### CALCULOS A PARTIR DEL PUNTO DE QUIEBRE
         
-        data <- df %>% 
+        df_2 <- df %>% 
           dplyr::filter(AÑO >= año_quiebre)
         
-        h_optimo <- bw.nrd0(data$TASA)
+        h_optimo <- bw.nrd0(df_2$TASA)
         
         
         # Suavizado con kernel gaussiano
         
         suavizado <- locpoly(
-          x = data$AÑO,
-          y = data$TASA,
+          x = df_2$AÑO,
+          y = df_2$TASA,
           bandwidth = h_optimo,  # Ajusta este valor (controla el suavizado)
-          gridsize = length(data$TASA),
+          gridsize = length(df_2$TASA),
           degree = 1  # Para suavizado, no ajuste polinomial
         )
         
@@ -513,7 +513,7 @@ shinyServer(function(input, output) {
         
         BB <- optimize_MASE(suavizado$y)
         
-        ajuste <- lm(data$TASA ~ data$`AÑO`)
+        ajuste <- lm(df_2$TASA ~ df_2$`AÑO`)
         
         resultado_ajuste <- summary(ajuste)
         
@@ -586,7 +586,7 @@ shinyServer(function(input, output) {
         
         
         confianza_futura_orig <- data.frame(AÑO = anio_pred_orig, 
-                                            tasa_proyectada = Período2_2$forecasted*faqtor,
+                                            tasa_proyectada = Período2_2$mean*faqtor,
                                             LI_orig = ci2_2_pred$lower*faqtor,
                                             LS_orig = ci2_2_pred$upper*faqtor,
                                             LI_puntos = ci2_2_pred_2$lower*faqtor,
@@ -595,11 +595,11 @@ shinyServer(function(input, output) {
         
         ### GRAFICO PROYECCION SIN CAMBIOS
         
-        limit_y_max <- if (max(df$TASA) > max(confianza_futura_orig$LS_orig)) {
+        limit_y_max <- if (max(df$TASA) > max(confianza_futura_orig$LS_puntos)) {
           
           max(df$TASA) } else {
             
-            max(confianza_futura_orig$LS_orig) }
+            max(confianza_futura_orig$LS_puntos) }
         
         
         grafico <- ggplot(df, aes(x = AÑO)) +
@@ -683,8 +683,8 @@ shinyServer(function(input, output) {
                       periodo,"; y se obtuvo una serie de datos suavizados")
       
       Box_5 <- paste0("En segundo lugar, se utilizó el método de Holt sobre esos datos suavizados; considerando un valor alfa de ",
-                      round(BB1$best_alpha,2)," y un valor beta de ",
-                      round(BB1$best_beta,2),
+                      round(BB$best_alpha,2)," y un valor beta de ",
+                      round(BB$best_beta,2),
                       "; y se calculó una nueva serie que se utilizó para calcular los residuos.
                           La variabilidad de los residuos se utilizó para calcular la región de confianza de los datos proyectados.")
       
@@ -909,9 +909,9 @@ shinyServer(function(input, output) {
       
       ### PROYECCION DE LOS DATOS ORIGINALES SIN KERNEL GAUSSIANO
       
-      BB1 <- optimize_MASE(df$TASA)
+      BB <- optimize_MASE(df$TASA)
       
-      Período2_2 <- holt_smooth(df$TASA, BB1$best_alpha, BB1$best_beta, length(anio_pred_orig))
+      Período2_2 <- holt_smooth(df$TASA, BB$best_alpha, BB$best_beta, length(anio_pred_orig))
       
       
       ## INTERVALO DE CONFIANZA DE LA PROYECCIÓN DE LA NO SUAVIZADA
@@ -1001,8 +1001,8 @@ shinyServer(function(input, output) {
       
       ### PROYECCION DE LOS DATOS ORIGINALES SIN KERNEL GAUSSIANO
       
-      BB1 <- optimize_MASE(data$TASA)
-      Período2_2 <- holt_smooth(data$TASA, BB1$best_alpha, BB1$best_beta, length(anio_pred_orig))
+      BB <- optimize_MASE(data$TASA)
+      Período2_2 <- holt_smooth(data$TASA, BB$best_alpha, BB$best_beta, length(anio_pred_orig))
       ci2_2_pred <- calculo_confianza_holt(Período2_2$forecasted,
                                             residuals2,0.95)
       
