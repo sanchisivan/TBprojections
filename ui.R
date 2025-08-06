@@ -20,12 +20,14 @@ library(plotly)
 library(rmarkdown)
 library(lubridate)
 library(markdown)
-
+library(waiter)
 
 jscode <- "shinyjs.closeWindow = function() { window.close(); }"
 
 # Define UI for application that draws a histogram
-shinyUI(fluidPage(theme = shinytheme("darkly"),
+shinyUI(fluidPage(
+  use_waiter(),
+  theme = shinytheme("darkly"),
                   navbarPage("Proyección de una serie de tiempo",
                              tabPanel("Datos",
                                       sidebarPanel(

@@ -10,6 +10,7 @@ library(markdown)
 library(tinytex)
 library(broom)
 library(forecast)
+library(waiter)
 
 shinyServer(function(input, output) {
   
@@ -481,6 +482,7 @@ shinyServer(function(input, output) {
           theme_minimal() +
           theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
                 axis.text = element_text(size = 14, face = "bold"),
+                axis.text.x = element_text(size = 14, face = "bold", angle = 45),
                 axis.title = element_text(size = 14, face = "bold"))
         
       } else {
@@ -619,6 +621,7 @@ shinyServer(function(input, output) {
           theme_minimal() +
           theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
                 axis.text = element_text(size = 14, face = "bold"),
+                axis.text.x = element_text(size = 14, face = "bold", angle = 45),
                 axis.title = element_text(size = 14, face = "bold"))
         
         
@@ -730,6 +733,7 @@ shinyServer(function(input, output) {
       theme_minimal() +
       theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
             axis.text = element_text(size = 14, face = "bold"),
+            axis.text.x = element_text(size = 14, face = "bold", angle = 45),
             axis.title = element_text(size = 14, face = "bold"))
     
   })
@@ -748,23 +752,33 @@ shinyServer(function(input, output) {
       paste0("report_", Sys.Date(), ".pdf")
     },
     content = function(file) {
-      # Generate first plot (figura1)
-      p1 <- figura1()
-      plot_file1 <- tempfile(fileext = ".png")
-      ggsave(plot_file1, plot = p1, width = 8, height = 5, dpi = 300)
-      plot_file1 <- normalizePath(plot_file1, winslash = "/")
+      # Mostrar overlay con texto centrado
+      waiter::waiter_show(
+        html = tags$div(
+          style = "color: white; font-size: 24px; text-align: center;",
+          "Generando reporte PDF..."
+        ),
+        color = "#444444cc"  # fondo gris oscuro con opacidad
+      )
       
-      # Generate second plot (figura2)
-      p2 <- figura2()
-      plot_file2 <- tempfile(fileext = ".png")
-      ggsave(plot_file2, plot = p2, width = 8, height = 5, dpi = 300)
-      plot_file2 <- normalizePath(plot_file2, winslash = "/")
-      req(input$lugar)
-      lugar <- input$lugar
-      
-      # Render report with both plots
-      result <- tryCatch({
-        rmarkdown::render(
+      tryCatch({
+        # Gráfico 1
+        p1 <- figura1()
+        plot_file1 <- tempfile(fileext = ".png")
+        ggsave(plot_file1, plot = p1, width = 8, height = 5, dpi = 300)
+        plot_file1 <- normalizePath(plot_file1, winslash = "/")
+        
+        # Gráfico 2
+        p2 <- figura2()
+        plot_file2 <- tempfile(fileext = ".png")
+        ggsave(plot_file2, plot = p2, width = 8, height = 5, dpi = 300)
+        plot_file2 <- normalizePath(plot_file2, winslash = "/")
+        
+        req(input$lugar)
+        lugar <- input$lugar
+        
+        # Renderizar el informe
+        result <- rmarkdown::render(
           input = "report_template.Rmd",
           output_file = tempfile(fileext = ".pdf"),
           params = list(
@@ -777,16 +791,16 @@ shinyServer(function(input, output) {
           ),
           envir = new.env(parent = globalenv())
         )
-      }, error = function(e) {
-        print(paste("Error al renderizar Rmd:", e$message))
-        NULL
+        
+        if (is.null(result) || !file.exists(result)) {
+          stop("Error: El archivo PDF no se generó correctamente.")
+        }
+        
+        file.copy(from = result, to = file, overwrite = TRUE)
+      }, finally = {
+        # Ocultar overlay
+        waiter::waiter_hide()
       })
-      
-      if (is.null(result) || !file.exists(result)) {
-        stop("Error: El archivo PDF no se generó correctamente.")
-      }
-      
-      file.copy(from = result, to = file, overwrite = TRUE)
     }
   )
   

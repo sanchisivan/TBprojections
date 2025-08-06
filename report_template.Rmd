@@ -25,19 +25,17 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
 `r params$summary_text`
 
----
+\newpage
 
 # Gráfico 1: Evolución histórica
 
-A continuación se muestra el primer gráfico, que representa la evolución histórica de los casos de tuberculosis proyectados según los datos ingresados.
+A continuación se muestra el primer gráfico, que representa la evolución histórica de los casos de tuberculosis según los datos ingresados.
 
-```{r grafico1, fig.cap="Evolución histórica de los casos", out.width='90%'}
+```{r grafico1, out.width='90%'}
 knitr::include_graphics(params$plot_file1)
 ```
 
-# Tabla 1: Tasa histórica
-
-**Tabla 1. Evolución histórica de la tasa de tuberculosis**
+# Tabla 1: Valores
 
 ```{r tabla1, echo=FALSE, results='asis'}
 knitr::kable(params$tabla1_reporte, digits = 2, booktabs = TRUE)
@@ -45,17 +43,15 @@ knitr::kable(params$tabla1_reporte, digits = 2, booktabs = TRUE)
 
 ---
 
-# Gráfico 2: Proyección por categoría
+# Gráfico 2: Proyección
 
 Este segundo gráfico muestra la proyección futura de la tasa de notificación, junto con su intervalo de confianza.
 
-```{r grafico2, fig.cap="Proyección de la tasa con intervalo de confianza", out.width='90%'}
+```{r grafico2, out.width='90%'}
 knitr::include_graphics(params$plot_file2)
 ```
 
-# Tabla 2: Proyección
-
-**Tabla 2. Valores proyectados**
+# Tabla 2: Valores proyectados
 
 ```{r tabla2, echo=FALSE, results='asis'}
 knitr::kable(params$tabla2_reporte, digits = 2, booktabs = TRUE)
