@@ -457,11 +457,11 @@ shinyServer(function(input, output) {
         
         ### GRAFICO PROYECCION SIN CAMBIOS
         
-        limit_y_max <- if (max(df$TASA) > max(confianza_futura_orig$LS_orig)) {
+        limit_y_max <- if (max(df$TASA) > max(confianza_futura_orig$LS_puntos)) {
           
           max(df$TASA) } else {
             
-            max(confianza_futura_orig$LS_orig) }
+            max(confianza_futura_orig$LS_puntos) }
         
         
         grafico <- ggplot(df, aes(x = AÑO)) +
@@ -887,18 +887,31 @@ shinyServer(function(input, output) {
       
       # Valores suavizados
       
-      datos_suavizados <- suavizado$y
+      #datos_suavizados <- suavizado$y
       
       ## APLICACION DE SUAVIZADO EXPONENCIAL (SIMPLE O DOBLE -HOLT- SEGÚN SI TIENE O NO TENDENCIA)
       
-      BB <- optimize_MASE(datos_suavizados)
+      BB <- optimize_MASE(suavizado$y)
       
-      Período2 <- holt_smooth(datos_suavizados, BB$best_alpha, BB$best_beta, 1)
+      ## VERIFICAR SI HAY TENDENCIA O NO PARA DEFINIR EL ALFA Y EL BETA
       
+      ajuste <- lm(df$TASA ~ df$`AÑO`)
+      
+      resultado_ajuste <- summary(ajuste)
+      
+      if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+        
+        Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+        
+      } else {
+        
+        Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+        
+      }
       
       ## CALCULO DE LOS RESIDUOS ENTRE LOS DATOS SUAVIZADOS Y EL SUAVIZADO EXPONENCIAL
       
-      residuals2 <- datos_suavizados- Período2$fitted
+      residuals2 <- suavizado$y - Período2$fitted
       
       ## HACER LA PROYECCION
       
@@ -906,18 +919,22 @@ shinyServer(function(input, output) {
       
       anio_pred_orig <- anio_pred_inicio_orig:anio_pred_final_orig
       
+      if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+        
+        Período2_2 <- holt(df$TASA,h = length(anio_pred_orig),
+                           alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+        
+      } else {
+        
+        Período2_2 <- holt(df$TASA,h = length(anio_pred_orig),
+                           alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+        
+      }
       
-      ### PROYECCION DE LOS DATOS ORIGINALES SIN KERNEL GAUSSIANO
       
-      BB <- optimize_MASE(df$TASA)
+      ## HACER LA PROYECCION USANDO LA FUNCION DE CONFIANZA HOLT
       
-      Período2_2 <- holt_smooth(df$TASA, BB$best_alpha, BB$best_beta, length(anio_pred_orig))
-      
-      
-      ## INTERVALO DE CONFIANZA DE LA PROYECCIÓN DE LA NO SUAVIZADA
-      
-      ci2_2_pred <- calculo_confianza_holt(Período2_2$forecasted,
-                                            residuals2,0.95)
+      ci2_2_pred<- calculo_confianza_holt(Período2_2$mean, Período2$residuals, confidence_level = 0.95)
       
       
       ## CREACION DEL DATA FRAME
@@ -948,47 +965,64 @@ shinyServer(function(input, output) {
         
       }
       
+      
+      ci2_2_pred_2 <- calculate_prediction_intervals(Período2_2$mean,Período2$residuals,
+                                                     as.numeric(length(anio_pred_orig)),confidence_level = 0.95)
+      
+      
       confianza_futura_orig <- data.frame(AÑO = anio_pred_orig, 
-                                          tasa_proyectada = Período2_2$forecasted*faqtor,
+                                          tasa_proyectada = Período2_2$mean*faqtor,
                                           LI_orig = ci2_2_pred$lower*faqtor,
-                                          LS_orig = ci2_2_pred$upper*faqtor)
+                                          LS_orig = ci2_2_pred$upper*faqtor,
+                                          LI_puntos = ci2_2_pred_2$lower*faqtor,
+                                          LS_puntos = ci2_2_pred_2$upper*faqtor)
       
     } else {
       
       
       ### CALCULOS A PARTIR DEL PUNTO DE QUIEBRE
       
-      data <- df %>% 
+      df_2 <- df %>% 
         dplyr::filter(AÑO >= año_quiebre)
       
-      h_optimo <- bw.nrd0(data$TASA)
+      h_optimo <- bw.nrd0(df_2$TASA)
       
       
       # Suavizado con kernel gaussiano
       
       suavizado <- locpoly(
-        x = data$AÑO,
-        y = data$TASA,
+        x = df_2$AÑO,
+        y = df_2$TASA,
         bandwidth = h_optimo,  # Ajusta este valor (controla el suavizado)
-        gridsize = length(data$TASA),
+        gridsize = length(df_2$TASA),
         degree = 1  # Para suavizado, no ajuste polinomial
       )
-      
-      # Valores suavizados
-      
-      datos_suavizados <- suavizado$y
       
       
       ## APLICACION DE SUAVIZADO EXPONENCIAL (SIMPLE O DOBLE -HOLT- SEGÚN SI TIENE O NO TENDENCIA)
       
-      BB <- optimize_MASE(datos_suavizados)
+      BB <- optimize_MASE(suavizado$y)
       
-      Período2 <- holt_smooth(datos_suavizados, BB$best_alpha, BB$best_beta, 1)
+      ## VERIFICAR SI HAY TENDENCIA O NO PARA DEFINIR EL ALFA Y EL BETA
+      
+      ajuste <- lm(df_2$TASA ~ df_2$`AÑO`)
+      
+      resultado_ajuste <- summary(ajuste)
+      
+      if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+        
+        Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+        
+      } else {
+        
+        Período2 <- holt(suavizado$y,h = 5,alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+        
+      }
       
       
       ## CALCULO DE LOS RESIDUOS ENTRE LOS DATOS SUAVIZADOS Y EL SUAVIZADO EXPONENCIAL
       
-      residuals2 <- datos_suavizados- Período2$fitted
+      residuals2 <- suavizado$y- Período2$fitted
       
       
       
@@ -998,13 +1032,29 @@ shinyServer(function(input, output) {
       
       anio_pred_orig <- anio_pred_inicio_orig:anio_pred_final_orig
       
+      if (resultado_ajuste$coefficients[2,4] >= 0.05) {
+        
+        Período2_2 <- holt(df_2$TASA,h = length(anio_pred_orig),
+                           alpha = BB$best_alpha,beta = 0.001,optim = FALSE)
+        
+      } else {
+        
+        Período2_2 <- holt(df_2$TASA,h = length(anio_pred_orig),
+                           alpha = BB$best_alpha,beta = BB$best_beta,optim = FALSE)
+        
+      }
+      
+      ## HACER LA PROYECCION USANDO LA FUNCION DE CONFIANZA HOLT
+      
+      ci2_2_pred<- calculo_confianza_holt(Período2_2$mean, Período2$residuals, confidence_level = 0.95)
+      
       
       ### PROYECCION DE LOS DATOS ORIGINALES SIN KERNEL GAUSSIANO
       
-      BB <- optimize_MASE(data$TASA)
-      Período2_2 <- holt_smooth(data$TASA, BB$best_alpha, BB$best_beta, length(anio_pred_orig))
-      ci2_2_pred <- calculo_confianza_holt(Período2_2$forecasted,
-                                            residuals2,0.95)
+      # BB <- optimize_MASE(data$TASA)
+      # Período2_2 <- holt_smooth(data$TASA, BB$best_alpha, BB$best_beta, length(anio_pred_orig))
+      # ci2_2_pred <- calculo_confianza_holt(Período2_2$forecasted,
+      #                                       residuals2,0.95)
       
       ### AGREGADO BRECHA Y SUBREGISTRO
       
@@ -1032,10 +1082,15 @@ shinyServer(function(input, output) {
         
       }
       
+      ci2_2_pred_2 <- calculate_prediction_intervals(Período2_2$mean,Período2$residuals,
+                                                     as.numeric(length(anio_pred_orig)),confidence_level = 0.95)
+      
       confianza_futura_orig <- data.frame(AÑO = anio_pred_orig, 
-                                          tasa_proyectada = Período2_2$forecasted*faqtor,
+                                          tasa_proyectada = as.numeric(Período2_2$mean)*faqtor,
                                           LI_orig = ci2_2_pred$lower*faqtor,
-                                          LS_orig = ci2_2_pred$upper*faqtor)
+                                          LS_orig = ci2_2_pred$upper*faqtor,
+                                          LI_puntos = ci2_2_pred_2$lower*faqtor,
+                                          LS_puntos = ci2_2_pred_2$upper*faqtor)
       
       
     }
@@ -1082,27 +1137,53 @@ shinyServer(function(input, output) {
     
     datos <- data.frame(AÑO = data_pob$AÑO,
                         POBLACION = round(data_pob$POBLACION,0),
-                        `TASA PROYECTADA` = round(confianza_futura_orig$tasa_proyectada,2),
-                        `LÍMITE INFERIOR TASA` = round(confianza_futura_orig$LI_orig,2),
-                        `LÍMITE SUPERIOR TASA` = round(confianza_futura_orig$LS_orig,2),
-                        `CASOS PROYECTADOS` = round(confianza_futura_orig$tasa_proyectada*data_pob$POBLACION/100000,0),
-                        `LÍMITE INFERIOR CASOS` = round(confianza_futura_orig$LI_orig*data_pob$POBLACION/100000,0),
-                        `LÍMITE SUPERIOR CASOS` = round(confianza_futura_orig$LS_orig*data_pob$POBLACION/100000,0))
+                        `TASA PROYECTADA` = round(as.numeric(Período2_2$mean)*faqtor,2),
+                        `LÍMITE INFERIOR TASA` = round(ci2_2_pred$lower*faqtor,2),
+                        `LÍMITE SUPERIOR TASA` = round(ci2_2_pred$upper*faqtor,2),
+                        `CASOS PROYECTADOS` = round(as.numeric(Período2_2$mean)*faqtor*data_pob$POBLACION/100000,0),
+                        `LÍMITE INFERIOR CASOS` = round(ci2_2_pred$lower*faqtor*data_pob$POBLACION/100000,0),
+                        `LÍMITE SUPERIOR CASOS` = round(ci2_2_pred$upper*faqtor*data_pob$POBLACION/100000,0),
+                        `LÍMITE INFERIOR TASA (puntos)` = round(ci2_2_pred_2$lower*faqtor,2),
+                        `LÍMITE SUPERIOR TASA (puntos)` = round(ci2_2_pred_2$upper*faqtor,2),
+                        `LÍMITE INFERIOR CASOS (puntos)` = round(ci2_2_pred_2$lower*faqtor*data_pob$POBLACION/100000,0),
+                        `LÍMITE SUPERIOR CASOS (puntos)` = round(ci2_2_pred_2$upper*faqtor*data_pob$POBLACION/100000,0))
     
-    tabla2_reporte(datos)
+    datos_transpuesto <- datos %>%
+      pivot_longer(
+        cols = -AÑO,
+        names_to = "Variable",
+        values_to = "Valor"
+      ) %>%
+      pivot_wider(
+        names_from = AÑO,
+        values_from = Valor
+      )
     
-    datatable(datos,
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "TASA.PROYECTADA"] <- "Tasa proyectada"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.INFERIOR.TASA"] <- "Límite inferior tasa (recta)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.SUPERIOR.TASA"] <- "Límite superior tasa (recta)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "CASOS.PROYECTADOS"] <- "Casos proyectados (recta)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.INFERIOR.CASOS"] <- "Límite inferior casos (recta)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.SUPERIOR.CASOS"] <- "Límite superior casos (recta)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.INFERIOR.TASA..puntos."] <- "Límite inferior tasa (puntos)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.SUPERIOR.TASA..puntos."] <- "Límite superior tasa (puntos)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.INFERIOR.CASOS..puntos."] <- "Límite inferior casos (puntos)"
+    datos_transpuesto$Variable[datos_transpuesto$Variable == "LÍMITE.SUPERIOR.CASOS..puntos."] <- "Límite superior casos (puntos)"
+    
+    tabla2_reporte(datos_transpuesto)
+    
+    datatable(datos_transpuesto,
               extensions = 'Buttons',
               options = list(
                 dom = 'Bfrtip',  # B = Buttons, r = processing, t = table, i = info, p = pagination
                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                pageLength = 10
+                pageLength = 11
               ),
               class = 'stripe hover cell-border order-column',
               style = 'bootstrap'
     ) %>%
       DT::formatStyle(
-        columns = names(datos),
+        columns = names(datos_transpuesto),
         backgroundColor = '#FFFFFF',
         color = '#000000'
       )
