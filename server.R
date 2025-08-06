@@ -628,74 +628,84 @@ shinyServer(function(input, output) {
       
       periodo <- paste0(min(df$AÑO),"-",max(df$AÑO))
       lugar <- input$lugar
-      Box_1 <- paste0("Durante el período ",periodo," la tuberculosis en ",lugar,
-                      " pasó de una tasa de ",round(first(df$TASA),2)," por 100000 habitantes a una tasa de ",
-                      round(last(df$TASA),2)," por 100000 habitantes.")
-      # box2
       
+      # Crear boxes con valores en negrita
+      
+      periodo <- paste0(min(df$AÑO), "-", max(df$AÑO))
+      lugar <- input$lugar
+      
+      Box_1 <- paste0("Durante el período **", periodo, "** la tuberculosis en **", lugar,
+                      "** pasó de una tasa de **", round(first(df$TASA), 2),
+                      "** por 100000 habitantes a una tasa de **", round(last(df$TASA), 2),
+                      "** por 100000 habitantes.")
+      
+      # Box 2
       if (is.na(resultado_chow) || resultado_chow >= 0.05) {
         VAP_1 <- lm(log(df$TASA) ~ df$`AÑO`)
         n_1 = length(df$TASA[complete.cases(df$TASA)])
-        tcritico_1 = qt(0.975,n_1-2)
-        beta_1 = c(summary(VAP_1)$coefficients[2,1],
-                   summary(VAP_1)$coefficients[2,1]-tcritico_1*summary(VAP_1)$coefficients[2,2],
-                   summary(VAP_1)$coefficients[2,1]+tcritico_1*summary(VAP_1)$coefficients[2,2])
-        VAP_1_valores <- round(((-1+exp(beta_1))*100),2)
+        tcritico_1 = qt(0.975, n_1 - 2)
+        beta_1 = c(summary(VAP_1)$coefficients[2, 1],
+                   summary(VAP_1)$coefficients[2, 1] - tcritico_1 * summary(VAP_1)$coefficients[2, 2],
+                   summary(VAP_1)$coefficients[2, 1] + tcritico_1 * summary(VAP_1)$coefficients[2, 2])
+        VAP_1_valores <- round(((-1 + exp(beta_1)) * 100), 2)
         VAP_1_VC = VAP_1_valores[1]
         VAP_1_LI = VAP_1_valores[2]
         VAP_1_LS = VAP_1_valores[3]
-        p_VAP_1 <- formatC(glance(VAP_1)$p.value, format = "f",digits = 4)
-        Box_2 <- paste0("No se identificó ningún punto de quiebre durante el período ",
-                        periodo,"; y, la tasa tuvo una variación anual promedio de ",
-                        VAP_1_VC,"%; IC 95% ",VAP_1_LI,"%; ",VAP_1_LS,"%; p=",
-                        p_VAP_1,".") }
-      else {
-        data <- df %>% 
-          dplyr::filter(AÑO >= año_quiebre)
+        p_VAP_1 <- formatC(glance(VAP_1)$p.value, format = "f", digits = 4)
+        
+        Box_2 <- paste0("No se identificó ningún punto de quiebre durante el período **", periodo,
+                        "**; y, la tasa tuvo una variación anual promedio de **", VAP_1_VC,
+                        "%**; IC 95% **", VAP_1_LI, "%**; **", VAP_1_LS, "%**; p = **", p_VAP_1, "**.")
+      } else {
+        data <- df %>% dplyr::filter(AÑO >= año_quiebre)
         VAP_1 <- lm(log(data$TASA) ~ data$`AÑO`)
         n_1 = length(data$TASA[complete.cases(data$TASA)])
-        tcritico_1 = qt(0.975,n_1-2)
-        beta_1 = c(summary(VAP_1)$coefficients[2,1],
-                   summary(VAP_1)$coefficients[2,1]-tcritico_1*summary(VAP_1)$coefficients[2,2],
-                   summary(VAP_1)$coefficients[2,1]+tcritico_1*summary(VAP_1)$coefficients[2,2])
-        VAP_1_valores <- round(((-1+exp(beta_1))*100),2)
+        tcritico_1 = qt(0.975, n_1 - 2)
+        beta_1 = c(summary(VAP_1)$coefficients[2, 1],
+                   summary(VAP_1)$coefficients[2, 1] - tcritico_1 * summary(VAP_1)$coefficients[2, 2],
+                   summary(VAP_1)$coefficients[2, 1] + tcritico_1 * summary(VAP_1)$coefficients[2, 2])
+        VAP_1_valores <- round(((-1 + exp(beta_1)) * 100), 2)
         VAP_1_VC = VAP_1_valores[1]
         VAP_1_LI = VAP_1_valores[2]
         VAP_1_LS = VAP_1_valores[3]
-        p_VAP_1 <- formatC(glance(VAP_1)$p.value, format = "f",digits = 4)
-        periodo <- paste0(min(data$AÑO),"-",max(data$AÑO))
-        Box_2 <- paste0("Durante el período ",periodo," se identificó un punto de quiebre en ",
-                        año_quiebre,": p = ",round(chow_test$p.value,4),";
-                          y, la tasa tuvo una variación anual promedio de ",
-                        VAP_1_VC,"%; IC 95% ",VAP_1_LI,"%; ",VAP_1_LS,"%; p=",
-                        p_VAP_1," durante el período ",min(data$AÑO),"-",
-                        max(data$AÑO),".") 
+        p_VAP_1 <- formatC(glance(VAP_1)$p.value, format = "f", digits = 4)
+        periodo <- paste0(min(data$AÑO), "-", max(data$AÑO))
+        
+        Box_2 <- paste0("Durante el período **", periodo, "** se identificó un punto de quiebre en **",
+                        año_quiebre, "**: p = **", round(chow_test$p.value, 4),
+                        "**; y, la tasa tuvo una variación anual promedio de **", VAP_1_VC,
+                        "%**; IC 95% **", VAP_1_LI, "%**; **", VAP_1_LS, "%**; p = **", p_VAP_1,
+                        "** durante el período **", min(data$AÑO), "-", max(data$AÑO), "**.")
       }
-      # fin box2
-      Box_3 <- paste0("Para la proyección del período ",anio_pred_inicio_orig,"-",
-                      anio_pred_final_orig," se utilizó el método de Holt sobre los datos observados para el período ",
-                      periodo,"; considerando un valor alfa de ",round(BB$best_alpha,2),
-                      " y un valor beta de ",round(BB$best_beta,2),", calculados utilizando el Error Absoluto Medio Escalonado (MASE, por su sigla en inglés).")
       
-      Box_4 <- paste0("Para calcular la región de confianza de la proyección para el período ",
-                      anio_pred_inicio_orig,"-",anio_pred_final_orig,
-                      "se realizó en primer lugar una regresión no paramétrica con kernel gaussiano de los datos observados para el período ",
-                      periodo,"; y se obtuvo una serie de datos suavizados")
+      Box_3 <- paste0("Para la proyección del período **", anio_pred_inicio_orig, "-",
+                      anio_pred_final_orig, "** se utilizó el método de Holt sobre los datos observados para el período **",
+                      periodo, "**; considerando un valor alfa de **", round(BB$best_alpha, 2),
+                      "** y un valor beta de **", round(BB$best_beta, 2),
+                      "**, calculados utilizando el Error Absoluto Medio Escalonado (MASE, por su sigla en inglés).")
       
-      Box_5 <- paste0("En segundo lugar, se utilizó el método de Holt sobre esos datos suavizados; considerando un valor alfa de ",
-                      round(BB$best_alpha,2)," y un valor beta de ",
-                      round(BB$best_beta,2),
-                      "; y se calculó una nueva serie que se utilizó para calcular los residuos.
-                          La variabilidad de los residuos se utilizó para calcular la región de confianza de los datos proyectados.")
+      Box_4 <- paste0("Para calcular la región de confianza de la proyección para el período **",
+                      anio_pred_inicio_orig, "-", anio_pred_final_orig,
+                      "** se realizó en primer lugar una regresión no paramétrica con kernel gaussiano de los datos observados para el período **",
+                      periodo, "**; y se obtuvo una serie de datos suavizados.")
       
-      Box_6 <- paste0("En la figura siguiente se muestra la tendencia de la notificación de casos de tuberculosis en ",
-                      lugar," para el período ",periodo,", la proyección de los valores observados para el periodo ",
-                      anio_pred_inicio_orig,"-",anio_pred_final_orig," y la región de confianza del 95% de la proyección.")
+      Box_5 <- paste0("En segundo lugar, se utilizó el método de Holt sobre esos datos suavizados; considerando un valor alfa de **",
+                      round(BB$best_alpha, 2), "** y un valor beta de **", round(BB$best_beta, 2),
+                      "**; y se calculó una nueva serie que se utilizó para calcular los residuos. La variabilidad de los residuos se utilizó para calcular la región de confianza de los datos proyectados.")
       
-      Box_7 <- paste0("En la tabla siguiente se muestran los valores de la tasa proyectada para el período ",
-                      anio_pred_inicio_orig,"-",anio_pred_final_orig," el límite inferior y superior de la región de confianza del 95% para la tasa; y los casos estimados para esas tasas a partir de la proyección de la población.")
+      Box_6 <- paste0("En la figura siguiente se muestra la tendencia de la notificación de casos de tuberculosis en **",
+                      lugar, "** para el período **", periodo,
+                      "**, la proyección de los valores observados para el período **",
+                      anio_pred_inicio_orig, "-", anio_pred_final_orig,
+                      "** y la región de confianza del 95% de la proyección.")
       
-      texto_final(paste(Box_1, Box_2,Box_3,Box_4,Box_5,Box_6,Box_7, sep =' '))
+      Box_7 <- paste0("En la tabla siguiente se muestran los valores de la tasa proyectada para el período **",
+                      anio_pred_inicio_orig, "-", anio_pred_final_orig,
+                      "**, el límite inferior y superior de la región de confianza del 95% para la tasa; y los casos estimados para esas tasas a partir de la proyección de la población.")
+      
+      # Unir todos los textos en párrafos
+      texto_final(paste(Box_1, Box_2, Box_3, Box_4, Box_5, Box_6, Box_7, sep = "\n\n"))
+      
       
       ### fin textos para pdf
       

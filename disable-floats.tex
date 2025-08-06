@@ -1,0 +1,7 @@
+\usepackage{float}
+\let\oldfigure\figure
+\let\endoldfigure\endfigure
+\renewenvironment{figure}[1][H]{\oldfigure[H]}{\endoldfigure}
+\let\oldtable\table
+\let\endoldtable\endtable
+\renewenvironment{table}[1][H]{\oldtable[H]}{\endoldtable}

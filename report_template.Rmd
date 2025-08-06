@@ -1,9 +1,13 @@
 ---
-title: "Proyección de tuberculosis en **`r params$lugar`**"
+title: "Proyección de tuberculosis en `r params$lugar`"
 output: 
   pdf_document:
     latex_engine: xelatex
     keep_tex: true
+    toc: false
+    number_sections: false
+    includes:
+      in_header: disable-floats.tex
 params:
   plot_file1: ""
   plot_file2: ""
@@ -31,14 +35,12 @@ A continuación se muestra el primer gráfico, que representa la evolución hist
 knitr::include_graphics(params$plot_file1)
 ```
 
----
-
 # Tabla 1: Tasa histórica
 
-Evolución histórica de la tasa de tuberculosis.
+**Tabla 1. Evolución histórica de la tasa de tuberculosis**
 
-```{r tabla1, echo=FALSE}
-knitr::kable(params$tabla1_reporte, caption = "Evolución histórica de la tasa de tuberculosis", digits = 2)
+```{r tabla1, echo=FALSE, results='asis'}
+knitr::kable(params$tabla1_reporte, digits = 2, booktabs = TRUE)
 ```
 
 ---
@@ -51,12 +53,10 @@ Este segundo gráfico muestra la proyección futura de la tasa de notificación,
 knitr::include_graphics(params$plot_file2)
 ```
 
----
-
 # Tabla 2: Proyección
 
-Valores proyectados y sus intervalos de confianza.
+**Tabla 2. Valores proyectados**
 
-```{r tabla2, echo=FALSE}
-knitr::kable(params$tabla2_reporte, caption = "Valores proyectados", digits = 2)
+```{r tabla2, echo=FALSE, results='asis'}
+knitr::kable(params$tabla2_reporte, digits = 2, booktabs = TRUE)
 ```
